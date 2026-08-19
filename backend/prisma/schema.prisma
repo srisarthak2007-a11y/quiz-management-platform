@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STUDENT
+}
+
+enum OptionKey {
+  A
+  B
+  C
+  D
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(STUDENT)
+  createdAt    DateTime  @default(now())
+
+  quizzesCreated Quiz[]    @relation("QuizCreator")
+  attempts       Attempt[]
+}
+
+model Quiz {
+  id              Int       @id @default(autoincrement())
+  title           String
+  description     String?
+  durationMinutes Int
+  isPublished     Boolean   @default(false)
+  createdBy       Int
+  creator         User      @relation("QuizCreator", fields: [createdBy], references: [id])
+  createdAt       DateTime  @default(now())
+
+  questions Question[]
+  attempts  Attempt[]
+}
+
+model Question {
+  id            Int       @id @default(autoincrement())
+  quizId        Int
+  quiz          Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionText  String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctOption OptionKey
+  marks         Int       @default(1)
+
+  answers Answer[]
+}
+
+model Attempt {
+  id          Int           @id @default(autoincrement())
+  quizId      Int
+  quiz        Quiz          @relation(fields: [quizId], references: [id])
+  userId      Int
+  user        User          @relation(fields: [userId], references: [id])
+  score       Int           @default(0)
+  totalMarks  Int           @default(0)
+  status      AttemptStatus @default(IN_PROGRESS)
+  startedAt   DateTime      @default(now())
+  submittedAt DateTime?
+
+  answers Answer[]
+
+  @@index([quizId])
+  @@index([userId])
+}
+
+model Answer {
+  id             Int        @id @default(autoincrement())
+  attemptId      Int
+  attempt        Attempt    @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId     Int
+  question       Question   @relation(fields: [questionId], references: [id])
+  selectedOption OptionKey?
+  isCorrect      Boolean    @default(false)
+
+  @@unique([attemptId, questionId])
+}
